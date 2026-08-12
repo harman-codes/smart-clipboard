@@ -329,22 +329,29 @@ impl eframe::App for SmartClipboardApp {
                         let preview = preview_text(&entry.text);
                         let frame = egui::Frame::group(ui.style());
                         frame.show(ui, |ui| {
+                            let row_width = ui.available_width();
                             ui.allocate_ui_with_layout(
-                                egui::vec2(
-                                    ui.available_size_before_wrap().x,
-                                    ui.spacing().interact_size.y,
-                                ),
+                                egui::vec2(row_width, ui.spacing().interact_size.y),
                                 egui::Layout::left_to_right(egui::Align::Center)
                                     .with_main_align(egui::Align::Min),
                                 |ui| {
                                     ui.add_space(4.0);
-                                    let avail = (ui.available_width() - 40.0).max(60.0);
-                                    let btn = egui::Button::new(
+                                    let x_space = 30.0;
+                                    let avail = (row_width - 4.0 - x_space).max(100.0);
+                                    let wrap_width =
+                                        avail - 2.0 * ui.spacing().button_padding.x;
+                                    let galley = egui::WidgetText::from(
                                         egui::RichText::new(preview)
                                             .color(ui.visuals().text_color()),
                                     )
-                                    .wrap()
-                                    .min_size(egui::vec2(avail, 0.0));
+                                    .into_galley(
+                                        ui,
+                                        Some(egui::TextWrapMode::Wrap),
+                                        wrap_width,
+                                        egui::TextStyle::Button,
+                                    );
+                                    let btn = egui::Button::new(galley)
+                                        .min_size(egui::vec2(avail, 0.0));
                                     let resp = ui.add(btn);
                                     if resp.on_hover_text(
                                         "Click to paste into the last focused window",
