@@ -261,7 +261,7 @@ impl eframe::App for SmartClipboardApp {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.label("Format");
-                let sw = ui.toggle_value(&mut self.format_on, "");
+                let sw = draw_toggle(ui, &mut self.format_on);
                 let (color, status) = if self.format_on {
                     (egui::Color32::from_rgb(120, 210, 120), "ON")
                 } else {
@@ -335,6 +335,47 @@ impl eframe::App for SmartClipboardApp {
             self.needs_save = false;
         }
     }
+}
+
+fn draw_toggle(ui: &mut egui::Ui, value: &mut bool) -> egui::Response {
+    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(36.0, 18.0), egui::Sense::click());
+    if response.clicked() {
+        *value = !*value;
+        response.mark_changed();
+    }
+    let on = *value;
+    let visuals = ui.visuals();
+    let track = rect.shrink2(egui::vec2(0.0, 3.0));
+    let radius = (track.height() * 0.5) as u8;
+    let track_color = if on {
+        egui::Color32::from_rgb(86, 182, 100)
+    } else {
+        visuals.widgets.inactive.bg_fill
+    };
+    let stroke = if response.hovered() {
+        visuals.widgets.hovered.weak_bg_fill
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    ui.painter().rect(
+        track,
+        radius,
+        track_color,
+        egui::Stroke::new(1.0, stroke),
+        egui::StrokeKind::Inside,
+    );
+    let knob_r = radius as f32 * 0.85;
+    let knob_x = if on {
+        track.right() - knob_r
+    } else {
+        track.left() + knob_r
+    };
+    ui.painter().circle_filled(
+        egui::pos2(knob_x, track.center().y),
+        knob_r,
+        visuals.extreme_bg_color,
+    );
+    response
 }
 
 fn preview_text(text: &str) -> String {
