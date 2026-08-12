@@ -8,7 +8,7 @@ fn default_true() -> bool {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Store {
-    #[serde(default)]
+    #[serde(default = "default_true")]
     format_on: bool,
     #[serde(default = "default_true")]
     dark_mode: bool,
