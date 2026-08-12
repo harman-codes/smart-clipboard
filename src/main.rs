@@ -115,7 +115,7 @@ impl SmartClipboardApp {
             format_on,
             data_path,
             io: ClipboardIO::new(),
-            last_seq: 0,
+            last_seq: current_sequence_number(),
             suppress_until_seq: 0,
             paste_target: unsafe { Some(GetForegroundWindow()) },
             app_hwnd,
