@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use clipboard::{current_sequence_number, ClipEntry, ClipboardIO};
 use eframe::egui;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -15,8 +16,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, GetGUIThreadInfo, GetWindowThreadProcessId, PostMessageW,
-    SetForegroundWindow, GUITHREADINFO, WM_PASTE,
+    GetForegroundWindow, GetGUIThreadInfo, GetWindowLongPtrW, GetWindowThreadProcessId,
+    PostMessageW, SetForegroundWindow, SetWindowLongPtrW, GWL_EXSTYLE, GUITHREADINFO, WM_PASTE,
+    WS_EX_NOACTIVATE,
 };
 
 const VK_CONTROL: u16 = 0x11;
@@ -72,9 +74,21 @@ fn main() -> eframe::Result {
         options,
         Box::new(move |cc| {
             cc.egui_ctx.set_visuals(egui::Visuals::dark());
-            Ok(Box::new(SmartClipboardApp::new(data_path, entries, format_on)))
+            let mut app = SmartClipboardApp::new(data_path, entries, format_on, app_window_hwnd(cc));
+            app.ensure_no_activate();
+            Ok(Box::new(app))
         }),
     )
+}
+
+fn app_window_hwnd(cc: &eframe::CreationContext<'_>) -> HWND {
+    match cc.window_handle() {
+        Ok(handle) => match handle.as_raw() {
+            RawWindowHandle::Win32(w) => HWND(w.hwnd.get() as *mut std::ffi::c_void),
+            _ => HWND(std::ptr::null_mut()),
+        },
+        Err(_) => HWND(std::ptr::null_mut()),
+    }
 }
 
 struct SmartClipboardApp {
@@ -85,11 +99,17 @@ struct SmartClipboardApp {
     last_seq: u32,
     suppress_until_seq: u32,
     paste_target: Option<HWND>,
+    app_hwnd: HWND,
     needs_save: bool,
 }
 
 impl SmartClipboardApp {
-    fn new(data_path: PathBuf, entries: Vec<ClipEntry>, format_on: bool) -> Self {
+    fn new(
+        data_path: PathBuf,
+        entries: Vec<ClipEntry>,
+        format_on: bool,
+        app_hwnd: HWND,
+    ) -> Self {
         Self {
             entries,
             format_on,
@@ -98,7 +118,21 @@ impl SmartClipboardApp {
             last_seq: 0,
             suppress_until_seq: 0,
             paste_target: unsafe { Some(GetForegroundWindow()) },
+            app_hwnd,
             needs_save: false,
+        }
+    }
+
+    fn ensure_no_activate(&self) {
+        unsafe {
+            if self.app_hwnd.0.is_null() {
+                return;
+            }
+            let ex = GetWindowLongPtrW(self.app_hwnd, GWL_EXSTYLE);
+            let no_act = WS_EX_NOACTIVATE.0 as isize;
+            if ex & no_act == 0 {
+                let _ = SetWindowLongPtrW(self.app_hwnd, GWL_EXSTYLE, ex | no_act);
+            }
         }
     }
 
@@ -140,29 +174,52 @@ impl SmartClipboardApp {
         let Some(target) = self.paste_target else {
             return;
         };
+        if target.0.is_null() {
+            return;
+        }
 
         std::thread::sleep(Duration::from_millis(60));
 
+        unsafe {
+            if GetForegroundWindow() == target {
+                std::thread::sleep(Duration::from_millis(30));
+                send_ctrl_v();
+            } else {
+                self.paste_focus_fallback(target);
+            }
+            let _ = SetForegroundWindow(target);
+        }
+    }
+
+    fn paste_focus_fallback(&self, target: HWND) {
         unsafe {
             let our_tid = GetCurrentThreadId();
             let target_tid = GetWindowThreadProcessId(target, None);
             let attached = our_tid != target_tid
                 && AttachThreadInput(our_tid, target_tid, true).as_bool();
-            let ok = SetForegroundWindow(target);
-            std::thread::sleep(Duration::from_millis(200));
-            let fg = GetForegroundWindow();
-            let mut info = GUITHREADINFO::default();
-            info.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
-            let tid = GetWindowThreadProcessId(fg, None);
-            let focus_hwnd = GetGUIThreadInfo(tid, &mut info)
-                .ok()
-                .map(|_| info.hwndFocus)
-                .unwrap_or(HWND(std::ptr::null_mut()));
 
-            if fg == target || ok.as_bool() {
+            let mut ok = SetForegroundWindow(target);
+            let deadline = std::time::Instant::now() + Duration::from_millis(1500);
+            while GetForegroundWindow() != target && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(20));
+                if !ok.as_bool() {
+                    ok = SetForegroundWindow(target);
+                }
+            }
+
+            if GetForegroundWindow() == target {
+                std::thread::sleep(Duration::from_millis(40));
                 send_ctrl_v();
-            } else if !focus_hwnd.0.is_null() {
-                let _ = PostMessageW(focus_hwnd, WM_PASTE, WPARAM(0), LPARAM(0));
+            } else {
+                let mut info = GUITHREADINFO::default();
+                info.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
+                let focus_hwnd = if GetGUIThreadInfo(target_tid, &mut info).is_ok() {
+                    info.hwndFocus
+                } else {
+                    HWND(std::ptr::null_mut())
+                };
+                let dest = if focus_hwnd.0.is_null() { target } else { focus_hwnd };
+                let _ = PostMessageW(dest, WM_PASTE, WPARAM(0), LPARAM(0));
             }
 
             if attached {
@@ -179,6 +236,7 @@ impl SmartClipboardApp {
 impl eframe::App for SmartClipboardApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(Duration::from_millis(250));
+        self.ensure_no_activate();
         self.poll_clipboard();
 
         let focused = ctx.input(|i| i.raw.focused);
