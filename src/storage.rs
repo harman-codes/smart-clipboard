@@ -12,6 +12,8 @@ struct Store {
     format_on: bool,
     #[serde(default = "default_true")]
     dark_mode: bool,
+    #[serde(default)]
+    trim_on: bool,
     entries: Vec<ClipEntry>,
 }
 
@@ -23,7 +25,7 @@ pub fn default_path() -> std::path::PathBuf {
         .join("smart_clipboard_data.json")
 }
 
-pub fn load(path: &Path) -> Option<(Vec<ClipEntry>, bool, bool)> {
+pub fn load(path: &Path) -> Option<(Vec<ClipEntry>, bool, bool, bool)> {
     let text = std::fs::read_to_string(path).ok()?;
     let store: Store = serde_json::from_str(&text).ok()?;
     let mut seen = std::collections::HashSet::new();
@@ -34,13 +36,14 @@ pub fn load(path: &Path) -> Option<(Vec<ClipEntry>, bool, bool)> {
             entries.push(e);
         }
     }
-    Some((entries, store.format_on, store.dark_mode))
+    Some((entries, store.format_on, store.dark_mode, store.trim_on))
 }
 
-pub fn save(path: &Path, entries: &[ClipEntry], format_on: bool, dark_mode: bool) {
+pub fn save(path: &Path, entries: &[ClipEntry], format_on: bool, dark_mode: bool, trim_on: bool) {
     let store = Store {
         format_on,
         dark_mode,
+        trim_on,
         entries: entries.to_vec(),
     };
     if let Ok(json) = serde_json::to_string_pretty(&store) {

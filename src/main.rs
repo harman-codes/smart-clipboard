@@ -54,7 +54,8 @@ fn send_ctrl_v() {
 
 fn main() -> eframe::Result {
     let data_path = storage::default_path();
-    let (entries, format_on, dark_mode) = storage::load(&data_path).unwrap_or((Vec::new(), true, true));
+    let (entries, format_on, dark_mode, trim_on) =
+        storage::load(&data_path).unwrap_or((Vec::new(), true, true, false));
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_always_on_top()
@@ -83,6 +84,7 @@ fn main() -> eframe::Result {
                 entries,
                 format_on,
                 dark_mode,
+                trim_on,
                 app_window_hwnd(cc),
             );
             app.ensure_no_activate();
@@ -105,6 +107,7 @@ struct SmartClipboardApp {
     entries: Vec<ClipEntry>,
     format_on: bool,
     dark_mode: bool,
+    trim_on: bool,
     data_path: PathBuf,
     io: ClipboardIO,
     last_seq: u32,
@@ -120,12 +123,14 @@ impl SmartClipboardApp {
         entries: Vec<ClipEntry>,
         format_on: bool,
         dark_mode: bool,
+        trim_on: bool,
         app_hwnd: HWND,
     ) -> Self {
         Self {
             entries,
             format_on,
             dark_mode,
+            trim_on,
             data_path,
             io: ClipboardIO::new(),
             last_seq: current_sequence_number(),
@@ -192,7 +197,19 @@ impl SmartClipboardApp {
         let Some(entry) = self.entries.get(idx).cloned() else {
             return;
         };
-        self.io.write(&entry, self.format_on);
+        if self.trim_on {
+            let trimmed = entry.text.trim().to_string();
+            if trimmed.is_empty() {
+                return;
+            }
+            let mut clean = entry;
+            clean.text = trimmed;
+            clean.html = None;
+            clean.rtf = None;
+            self.io.write(&clean, false);
+        } else {
+            self.io.write(&entry, self.format_on);
+        }
         self.suppress_until_seq = current_sequence_number();
 
         let Some(target) = self.paste_target else {
@@ -253,7 +270,13 @@ impl SmartClipboardApp {
     }
 
     fn persist(&self) {
-        storage::save(&self.data_path, &self.entries, self.format_on, self.dark_mode);
+        storage::save(
+            &self.data_path,
+            &self.entries,
+            self.format_on,
+            self.dark_mode,
+            self.trim_on,
+        );
     }
 }
 
@@ -296,6 +319,23 @@ impl eframe::App for SmartClipboardApp {
                 sw.on_hover_text(
                     "When ON, text is pasted with its formatting.\nWhen OFF, it is pasted as plain text.",
                 );
+                ui.add_space(10.0);
+                ui.label("Trim");
+                let trim_sw = draw_toggle(ui, &mut self.trim_on);
+                let (trim_color, trim_status) = if self.trim_on {
+                    (egui::Color32::from_rgb(120, 210, 120), "ON")
+                } else {
+                    (ui.visuals().weak_text_color(), "OFF")
+                };
+                ui.colored_label(trim_color, trim_status);
+                if trim_sw
+                    .on_hover_text(
+                        "When ON, leading and trailing whitespace is removed\nwhen pasting. Copying is not affected.",
+                    )
+                    .changed()
+                {
+                    self.needs_save = true;
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(if self.dark_mode { "Dark" } else { "Light" });
                     let theme_sw = draw_toggle(ui, &mut self.dark_mode);
