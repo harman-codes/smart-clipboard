@@ -5,24 +5,21 @@ mod clipboard {
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::time::{Duration, Instant};
 
-use windows::core::{PCSTR, PCWSTR};
-use windows::Win32::Foundation::{
-    HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM,
-};
+use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress, LoadLibraryW};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT,
+    INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, SendInput,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows,
-    GetForegroundWindow, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, PeekMessageW, RegisterClassExW, SendMessageW, SetCursorPos,
-    SetForegroundWindow, SetWindowPos, ShowWindow, TranslateMessage, WindowFromPoint,
-    WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSEXW, WNDCLASS_STYLES, WS_CHILD,
-    WS_OVERLAPPEDWINDOW, WS_VISIBLE, ES_AUTOVSCROLL, ES_MULTILINE, MSG, PM_REMOVE, SWP_NOACTIVATE,
-    SWP_NOZORDER, SW_SHOW, WM_ACTIVATE, WM_GETTEXT,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, ES_AUTOVSCROLL, ES_MULTILINE,
+    EnumWindows, GetForegroundWindow, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+    GetWindowThreadProcessId, MSG, PM_REMOVE, PeekMessageW, RegisterClassExW, SW_SHOW,
+    SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetCursorPos, SetForegroundWindow, SetWindowPos,
+    ShowWindow, TranslateMessage, WINDOW_EX_STYLE, WINDOW_STYLE, WM_ACTIVATE, WM_GETTEXT,
+    WNDCLASS_STYLES, WNDCLASSEXW, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
 };
+use windows::core::{PCSTR, PCWSTR};
 
 const TARGET_TITLE: &str = "PROBE_TARGET";
 const TARGET_CLASS: &str = "FocusProbeWnd";

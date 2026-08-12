@@ -6,18 +6,18 @@ mod storage;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use clipboard::{current_sequence_number, ClipEntry, ClipboardIO};
+use clipboard::{ClipEntry, ClipboardIO, current_sequence_number};
 use eframe::egui;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
+    INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput,
     VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, GetGUIThreadInfo, GetWindowLongPtrW, GetWindowThreadProcessId,
-    PostMessageW, SetForegroundWindow, SetWindowLongPtrW, GWL_EXSTYLE, GUITHREADINFO, WM_PASTE,
+    GUITHREADINFO, GWL_EXSTYLE, GetForegroundWindow, GetGUIThreadInfo, GetWindowLongPtrW,
+    GetWindowThreadProcessId, PostMessageW, SetForegroundWindow, SetWindowLongPtrW, WM_PASTE,
     WS_EX_NOACTIVATE,
 };
 
@@ -79,7 +79,7 @@ fn main() -> eframe::Result {
             } else {
                 egui::Theme::Light
             });
-            let mut app = SmartClipboardApp::new(
+            let app = SmartClipboardApp::new(
                 data_path,
                 entries,
                 format_on,
@@ -181,9 +181,11 @@ impl SmartClipboardApp {
 
     fn add_entry(&mut self, entry: ClipEntry) {
         let key = (entry.text.clone(), entry.html.clone(), entry.rtf.clone());
-        if let Some(pos) = self.entries.iter().position(|e| {
-            e.text == key.0 && e.html == key.1 && e.rtf == key.2
-        }) {
+        if let Some(pos) = self
+            .entries
+            .iter()
+            .position(|e| e.text == key.0 && e.html == key.1 && e.rtf == key.2)
+        {
             let mut existing = self.entries.remove(pos);
             existing.time = entry.time;
             self.entries.insert(0, existing);
@@ -236,8 +238,8 @@ impl SmartClipboardApp {
         unsafe {
             let our_tid = GetCurrentThreadId();
             let target_tid = GetWindowThreadProcessId(target, None);
-            let attached = our_tid != target_tid
-                && AttachThreadInput(our_tid, target_tid, true).as_bool();
+            let attached =
+                our_tid != target_tid && AttachThreadInput(our_tid, target_tid, true).as_bool();
 
             let mut ok = SetForegroundWindow(target);
             let deadline = std::time::Instant::now() + Duration::from_millis(1500);
@@ -259,7 +261,11 @@ impl SmartClipboardApp {
                 } else {
                     HWND(std::ptr::null_mut())
                 };
-                let dest = if focus_hwnd.0.is_null() { target } else { focus_hwnd };
+                let dest = if focus_hwnd.0.is_null() {
+                    target
+                } else {
+                    focus_hwnd
+                };
                 let _ = PostMessageW(dest, WM_PASTE, WPARAM(0), LPARAM(0));
             }
 
@@ -453,7 +459,7 @@ fn draw_toggle(ui: &mut egui::Ui, value: &mut bool) -> egui::Response {
         track,
         radius,
         track_color,
-        egui::Stroke::new(1.0, stroke),
+        egui::Stroke::new(1.0_f32, stroke),
         egui::StrokeKind::Inside,
     );
     let knob_r = radius as f32 * 0.85;

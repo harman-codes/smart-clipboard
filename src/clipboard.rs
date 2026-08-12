@@ -1,11 +1,13 @@
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber,
     IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
 };
-use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
+use windows::Win32::System::Memory::{
+    GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock,
+};
 
 const CF_UNICODETEXT: u32 = 13;
 
@@ -70,9 +72,13 @@ impl ClipboardIO {
             return None;
         }
 
-        let html = self
-            .read_bytes(self.html_format)
-            .map(|b| String::from_utf8_lossy(&b).split('\0').next().unwrap_or("").to_string());
+        let html = self.read_bytes(self.html_format).map(|b| {
+            String::from_utf8_lossy(&b)
+                .split('\0')
+                .next()
+                .unwrap_or("")
+                .to_string()
+        });
         let rtf = self.read_bytes(self.rtf_format).map(|b| STANDARD.encode(b));
 
         let time = std::time::SystemTime::now()
@@ -80,7 +86,12 @@ impl ClipboardIO {
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
 
-        Some(ClipEntry { text, html, rtf, time })
+        Some(ClipEntry {
+            text,
+            html,
+            rtf,
+            time,
+        })
     }
 
     fn read_bytes(&self, format: u32) -> Option<Vec<u8>> {
