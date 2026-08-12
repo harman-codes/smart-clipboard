@@ -2,7 +2,7 @@
 
 A portable Windows clipboard manager built with [Rust](https://www.rust-lang.org/) and [egui](https://egui.rs/).
 
-The app stays pinned on top of every window, watches your clipboard, and keeps everything you copy (including formatting) in an always-available list. Click any entry to paste it into the field you were last typing in.
+Super lightweight app. The app stays pinned on top of every window, watches your clipboard, and keeps everything you copy (including formatting) in an always-available list. Click any entry to paste it into the field you were last typing in.
 
 ## Features
 
