@@ -2,6 +2,7 @@
 name = "smart-clipboard"
 version = "0.1.0"
 edition = "2024"
+authors = ["Harmandeep Singh"]
 
 [dependencies]
 eframe = "0.31"
