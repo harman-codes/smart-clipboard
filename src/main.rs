@@ -329,28 +329,38 @@ impl eframe::App for SmartClipboardApp {
                         let preview = preview_text(&entry.text);
                         let frame = egui::Frame::group(ui.style());
                         frame.show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.add_space(4.0);
-                                let avail = (ui.available_width() - 40.0).max(60.0);
-                                let btn = egui::Button::new(
-                                    egui::RichText::new(preview).color(ui.visuals().text_color()),
-                                )
-                                .wrap()
-                                .min_size(egui::vec2(avail, 0.0));
-                                let resp = ui.add(btn);
-                                if resp.on_hover_text(
-                                    "Click to paste into the last focused window",
-                                ).clicked()
-                                {
-                                    paste = Some(i);
-                                }
-                                let x = ui
-                                    .small_button("X")
-                                    .on_hover_text("Remove this entry");
-                                if x.clicked() {
-                                    remove = Some(i);
-                                }
-                            });
+                            ui.allocate_ui_with_layout(
+                                egui::vec2(
+                                    ui.available_size_before_wrap().x,
+                                    ui.spacing().interact_size.y,
+                                ),
+                                egui::Layout::left_to_right(egui::Align::Center)
+                                    .with_main_align(egui::Align::Min),
+                                |ui| {
+                                    ui.add_space(4.0);
+                                    let avail = (ui.available_width() - 40.0).max(60.0);
+                                    let btn = egui::Button::new(
+                                        egui::RichText::new(preview)
+                                            .color(ui.visuals().text_color()),
+                                    )
+                                    .wrap()
+                                    .min_size(egui::vec2(avail, 0.0));
+                                    let resp = ui.add(btn);
+                                    if resp.on_hover_text(
+                                        "Click to paste into the last focused window",
+                                    )
+                                    .clicked()
+                                    {
+                                        paste = Some(i);
+                                    }
+                                    let x = ui
+                                        .small_button("X")
+                                        .on_hover_text("Remove this entry");
+                                    if x.clicked() {
+                                        remove = Some(i);
+                                    }
+                                },
+                            );
                         });
                         ui.add_space(4.0);
                     }
