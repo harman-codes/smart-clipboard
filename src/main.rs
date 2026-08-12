@@ -54,7 +54,7 @@ fn send_ctrl_v() {
 
 fn main() -> eframe::Result {
     let data_path = storage::default_path();
-    let (entries, format_on) = storage::load(&data_path).unwrap_or((Vec::new(), true));
+    let (entries, format_on, dark_mode) = storage::load(&data_path).unwrap_or((Vec::new(), true, true));
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_always_on_top()
@@ -73,8 +73,18 @@ fn main() -> eframe::Result {
         "Smart Clipboard",
         options,
         Box::new(move |cc| {
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
-            let mut app = SmartClipboardApp::new(data_path, entries, format_on, app_window_hwnd(cc));
+            cc.egui_ctx.set_theme(if dark_mode {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            });
+            let mut app = SmartClipboardApp::new(
+                data_path,
+                entries,
+                format_on,
+                dark_mode,
+                app_window_hwnd(cc),
+            );
             app.ensure_no_activate();
             Ok(Box::new(app))
         }),
@@ -94,6 +104,7 @@ fn app_window_hwnd(cc: &eframe::CreationContext<'_>) -> HWND {
 struct SmartClipboardApp {
     entries: Vec<ClipEntry>,
     format_on: bool,
+    dark_mode: bool,
     data_path: PathBuf,
     io: ClipboardIO,
     last_seq: u32,
@@ -108,11 +119,13 @@ impl SmartClipboardApp {
         data_path: PathBuf,
         entries: Vec<ClipEntry>,
         format_on: bool,
+        dark_mode: bool,
         app_hwnd: HWND,
     ) -> Self {
         Self {
             entries,
             format_on,
+            dark_mode,
             data_path,
             io: ClipboardIO::new(),
             last_seq: current_sequence_number(),
@@ -133,6 +146,17 @@ impl SmartClipboardApp {
             if ex & no_act == 0 {
                 let _ = SetWindowLongPtrW(self.app_hwnd, GWL_EXSTYLE, ex | no_act);
             }
+        }
+    }
+
+    fn apply_theme(&self, ctx: &egui::Context) {
+        let want = if self.dark_mode {
+            egui::Theme::Dark
+        } else {
+            egui::Theme::Light
+        };
+        if ctx.theme() != want {
+            ctx.set_theme(want);
         }
     }
 
@@ -229,13 +253,14 @@ impl SmartClipboardApp {
     }
 
     fn persist(&self) {
-        storage::save(&self.data_path, &self.entries, self.format_on);
+        storage::save(&self.data_path, &self.entries, self.format_on, self.dark_mode);
     }
 }
 
 impl eframe::App for SmartClipboardApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(Duration::from_millis(250));
+        self.apply_theme(ctx);
         self.ensure_no_activate();
         self.poll_clipboard();
 
@@ -271,6 +296,16 @@ impl eframe::App for SmartClipboardApp {
                 sw.on_hover_text(
                     "When ON, text is pasted with its formatting.\nWhen OFF, it is pasted as plain text.",
                 );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(if self.dark_mode { "Dark" } else { "Light" });
+                    let theme_sw = draw_toggle(ui, &mut self.dark_mode);
+                    if theme_sw.changed() {
+                        self.needs_save = true;
+                    }
+                    theme_sw.on_hover_text(
+                        "Switch between light and dark theme.",
+                    );
+                });
             });
             ui.add_space(6.0);
         });
