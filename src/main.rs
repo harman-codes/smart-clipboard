@@ -115,6 +115,7 @@ struct SmartClipboardApp {
     paste_target: Option<HWND>,
     app_hwnd: HWND,
     needs_save: bool,
+    sort_asc: bool,
 }
 
 impl SmartClipboardApp {
@@ -138,6 +139,7 @@ impl SmartClipboardApp {
             paste_target: unsafe { Some(GetForegroundWindow()) },
             app_hwnd,
             needs_save: false,
+            sort_asc: false,
         }
     }
 
@@ -284,6 +286,13 @@ impl SmartClipboardApp {
             self.trim_on,
         );
     }
+
+    fn sort_entries(&mut self) {
+        self.entries.sort_by(|a, b| {
+            let ord = a.time.cmp(&b.time);
+            if self.sort_asc { ord } else { ord.reverse() }
+        });
+    }
 }
 
 impl eframe::App for SmartClipboardApp {
@@ -292,6 +301,7 @@ impl eframe::App for SmartClipboardApp {
         self.apply_theme(ctx);
         self.ensure_no_activate();
         self.poll_clipboard();
+        self.sort_entries();
 
         let focused = ctx.input(|i| i.raw.focused);
         if !focused {
@@ -303,6 +313,16 @@ impl eframe::App for SmartClipboardApp {
             ui.horizontal(|ui| {
                 ui.strong("Smart Clipboard");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let sort_hint = if self.sort_asc {
+                        "Sorted oldest first. Click to show newest first."
+                    } else {
+                        "Sorted newest first. Click to show oldest first."
+                    };
+                    let sort_resp = sort_button(ui, self.sort_asc).on_hover_text(sort_hint);
+                    if sort_resp.clicked() {
+                        self.sort_asc = !self.sort_asc;
+                    }
+                    ui.add_space(4.0);
                     let resp = ui
                         .button("Clear All")
                         .on_hover_text("Remove all saved clipboard entries");
@@ -433,6 +453,54 @@ impl eframe::App for SmartClipboardApp {
             self.needs_save = false;
         }
     }
+}
+
+fn sort_button(ui: &mut egui::Ui, asc: bool) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 18.0), egui::Sense::click());
+    let visuals = ui.style().interact(&response);
+    ui.painter().rect(
+        rect,
+        4.0,
+        visuals.weak_bg_fill,
+        visuals.bg_stroke,
+        egui::StrokeKind::Inside,
+    );
+
+    let active = ui.visuals().strong_text_color();
+    let dim = ui.visuals().weak_text_color();
+    let r = 3.0;
+    let cx = rect.center().x;
+    let up_center = egui::pos2(cx, rect.center().y - 4.0);
+    let down_center = egui::pos2(cx, rect.center().y + 4.0);
+    draw_arrow(
+        ui.painter(),
+        up_center,
+        true,
+        r,
+        if asc { active } else { dim },
+    );
+    draw_arrow(
+        ui.painter(),
+        down_center,
+        false,
+        r,
+        if asc { dim } else { active },
+    );
+    response
+}
+
+fn draw_arrow(painter: &egui::Painter, center: egui::Pos2, up: bool, r: f32, color: egui::Color32) {
+    let (apex, base_y) = if up {
+        (egui::pos2(center.x, center.y - r), center.y + r)
+    } else {
+        (egui::pos2(center.x, center.y + r), center.y - r)
+    };
+    let pts = vec![
+        apex,
+        egui::pos2(center.x - r * 0.7, base_y),
+        egui::pos2(center.x + r * 0.7, base_y),
+    ];
+    painter.add(egui::Shape::convex_polygon(pts, color, egui::Stroke::NONE));
 }
 
 fn draw_toggle(ui: &mut egui::Ui, value: &mut bool) -> egui::Response {
