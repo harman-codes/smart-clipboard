@@ -363,14 +363,13 @@ impl eframe::App for SmartClipboardApp {
                     self.needs_save = true;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(if self.dark_mode { "Dark" } else { "Light" });
-                    let theme_sw = draw_toggle(ui, &mut self.dark_mode);
-                    if theme_sw.changed() {
+                    let theme_resp = ui
+                        .button(if self.dark_mode { "Dark" } else { "Light" })
+                        .on_hover_text("Switch between light and dark theme.");
+                    if theme_resp.clicked() {
+                        self.dark_mode = !self.dark_mode;
                         self.needs_save = true;
                     }
-                    theme_sw.on_hover_text(
-                        "Switch between light and dark theme.",
-                    );
                 });
             });
             ui.add_space(6.0);
