@@ -346,20 +346,18 @@ impl eframe::App for SmartClipboardApp {
                     "When ON, text is pasted with its formatting.\nWhen OFF, it is pasted as plain text.",
                 );
                 ui.add_space(10.0);
-                ui.label("Trim");
-                let trim_sw = draw_toggle(ui, &mut self.trim_on);
-                let (trim_color, trim_status) = if self.trim_on {
-                    (egui::Color32::from_rgb(120, 210, 120), "ON")
+                let trim_label = if self.trim_on {
+                    egui::RichText::new("Trim: ON").color(egui::Color32::from_rgb(120, 210, 120))
                 } else {
-                    (ui.visuals().weak_text_color(), "OFF")
+                    egui::RichText::new("Trim: OFF").color(egui::Color32::from_rgb(230, 90, 90))
                 };
-                ui.colored_label(trim_color, trim_status);
-                if trim_sw
+                let trim_resp = ui
+                    .button(trim_label)
                     .on_hover_text(
                         "When ON, leading and trailing whitespace is removed\nwhen pasting. Copying is not affected.",
-                    )
-                    .changed()
-                {
+                    );
+                if trim_resp.clicked() {
+                    self.trim_on = !self.trim_on;
                     self.needs_save = true;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
