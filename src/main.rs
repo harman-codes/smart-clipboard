@@ -165,6 +165,20 @@ impl SmartClipboardApp {
         if ctx.theme() != want {
             ctx.set_theme(want);
         }
+        ctx.style_mut(|s| {
+            let border = egui::Stroke::new(
+                1.0_f32,
+                s.visuals
+                    .widgets
+                    .inactive
+                    .fg_stroke
+                    .color
+                    .gamma_multiply(0.45),
+            );
+            s.visuals.widgets.inactive.bg_stroke = border;
+            s.visuals.widgets.hovered.bg_stroke = border;
+            s.visuals.widgets.active.bg_stroke = border;
+        });
     }
 
     fn poll_clipboard(&mut self) {
