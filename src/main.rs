@@ -348,10 +348,21 @@ impl eframe::App for SmartClipboardApp {
             });
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                let format_label = if self.format_on {
-                    egui::RichText::new("Format: ON").color(egui::Color32::from_rgb(120, 210, 120))
+                let (on_color, off_color) = if self.dark_mode {
+                    (
+                        egui::Color32::from_rgb(120, 210, 120),
+                        egui::Color32::from_rgb(230, 90, 90),
+                    )
                 } else {
-                    egui::RichText::new("Format: OFF").color(egui::Color32::from_rgb(230, 90, 90))
+                    (
+                        egui::Color32::from_rgb(0, 130, 60),
+                        egui::Color32::from_rgb(180, 30, 30),
+                    )
+                };
+                let format_label = if self.format_on {
+                    egui::RichText::new("Format: ON").color(on_color)
+                } else {
+                    egui::RichText::new("Format: OFF").color(off_color)
                 };
                 let format_resp = ui
                     .button(format_label)
@@ -364,9 +375,9 @@ impl eframe::App for SmartClipboardApp {
                 }
                 ui.add_space(10.0);
                 let trim_label = if self.trim_on {
-                    egui::RichText::new("Trim: ON").color(egui::Color32::from_rgb(120, 210, 120))
+                    egui::RichText::new("Trim: ON").color(on_color)
                 } else {
-                    egui::RichText::new("Trim: OFF").color(egui::Color32::from_rgb(230, 90, 90))
+                    egui::RichText::new("Trim: OFF").color(off_color)
                 };
                 let trim_resp = ui
                     .button(trim_label)
