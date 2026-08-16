@@ -334,17 +334,20 @@ impl eframe::App for SmartClipboardApp {
             });
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.label("Format");
-                let sw = draw_toggle(ui, &mut self.format_on);
-                let (color, status) = if self.format_on {
-                    (egui::Color32::from_rgb(120, 210, 120), "ON")
+                let format_label = if self.format_on {
+                    egui::RichText::new("Format: ON").color(egui::Color32::from_rgb(120, 210, 120))
                 } else {
-                    (ui.visuals().weak_text_color(), "OFF")
+                    egui::RichText::new("Format: OFF").color(egui::Color32::from_rgb(230, 90, 90))
                 };
-                ui.colored_label(color, status);
-                sw.on_hover_text(
-                    "When ON, text is pasted with its formatting.\nWhen OFF, it is pasted as plain text.",
-                );
+                let format_resp = ui
+                    .button(format_label)
+                    .on_hover_text(
+                        "When ON, text is pasted with its formatting.\nWhen OFF, it is pasted as plain text.",
+                    );
+                if format_resp.clicked() {
+                    self.format_on = !self.format_on;
+                    self.needs_save = true;
+                }
                 ui.add_space(10.0);
                 let trim_label = if self.trim_on {
                     egui::RichText::new("Trim: ON").color(egui::Color32::from_rgb(120, 210, 120))
@@ -498,47 +501,6 @@ fn draw_arrow(painter: &egui::Painter, center: egui::Pos2, up: bool, r: f32, col
         egui::pos2(center.x + r * 0.7, base_y),
     ];
     painter.add(egui::Shape::convex_polygon(pts, color, egui::Stroke::NONE));
-}
-
-fn draw_toggle(ui: &mut egui::Ui, value: &mut bool) -> egui::Response {
-    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(36.0, 18.0), egui::Sense::click());
-    if response.clicked() {
-        *value = !*value;
-        response.mark_changed();
-    }
-    let on = *value;
-    let visuals = ui.visuals();
-    let track = rect.shrink2(egui::vec2(0.0, 3.0));
-    let radius = (track.height() * 0.5) as u8;
-    let track_color = if on {
-        egui::Color32::from_rgb(86, 182, 100)
-    } else {
-        visuals.widgets.inactive.bg_fill
-    };
-    let stroke = if response.hovered() {
-        visuals.widgets.hovered.weak_bg_fill
-    } else {
-        egui::Color32::TRANSPARENT
-    };
-    ui.painter().rect(
-        track,
-        radius,
-        track_color,
-        egui::Stroke::new(1.0_f32, stroke),
-        egui::StrokeKind::Inside,
-    );
-    let knob_r = radius as f32 * 0.85;
-    let knob_x = if on {
-        track.right() - knob_r
-    } else {
-        track.left() + knob_r
-    };
-    ui.painter().circle_filled(
-        egui::pos2(knob_x, track.center().y),
-        knob_r,
-        visuals.extreme_bg_color,
-    );
-    response
 }
 
 fn preview_text(text: &str) -> String {
